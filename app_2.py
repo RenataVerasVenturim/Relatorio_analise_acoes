@@ -251,37 +251,109 @@ with open('Relatorio_Analise_Fundamentalista_Acoes.pdf', 'wb') as f:
 
     c.showPage()  # Avançar para a próxima página
     c.save()  # Salvar o arquivo PDF
+#---------------------------------------------gera PDF SELIC E IBOVESPA -----------------------
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+import requests
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from io import BytesIO
+import yfinance as yf
+
+# Função para obter os dados da SELIC
+def obter_dados_selic():
+    data_hoje = datetime.now()
+    data_final = data_hoje - timedelta(days=60)  # 60 dias equivalem a dois meses
+    data_final_formatada = data_final.strftime('%d/%m/%Y')
+
+    url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados?formato=json&dataInicial=01/01/1996&dataFinal={data_final_formatada}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        dados_api = response.json()
+        datas = [datetime.strptime(dado['data'], '%d/%m/%Y') for dado in dados_api]
+        valores_selic = [float(dado['valor']) for dado in dados_api]
+        return datas, valores_selic
+    else:
+        print("Erro ao acessar a API da SELIC")
+
+# Obter os dados históricos do Ibovespa do Yahoo Finance
+def obter_dados_ibovespa():
+    ibov = yf.download("^BVSP", start="1996-01-01")
+    ibov['Year'] = ibov.index.year
+    ibov['Month'] = ibov.index.month
+    annual_closes = ibov[ibov['Month'] == 12]['Close']
+    return annual_closes
+
+# Criar um arquivo PDF para o relatório
+with open('Selic_ibovespa.pdf', 'wb') as f:
+    c = canvas.Canvas(f, pagesize=letter)
+
+    # Adicionar texto no topo do arquivo PDF
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(50, 800, "RELATÓRIO - Taxa SELIC e Fechamento Anual do Ibovespa")
+
+    # Adicionar o gráfico da SELIC ao arquivo PDF
+    c.drawString(50, 700, "Gráfico da SELIC")
+    datas_selic, valores_selic = obter_dados_selic()
+    plt.figure(figsize=(8, 4))
+    plt.plot(datas_selic, valores_selic, label='SELIC', color='blue')
+    plt.xlabel('Data')
+    plt.ylabel('Taxa SELIC')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig('selic_plot.png', bbox_inches='tight')
+    plt.close()
+    c.drawImage('selic_plot.png', 50, 530, width=400, height=200)
+
+    # Adicionar o gráfico do Ibovespa ao arquivo PDF
+    c.drawString(50, 300, "Gráfico do Fechamento Anual do Ibovespa em Dezembro")
+    annual_closes = obter_dados_ibovespa()
+    plt.figure(figsize=(4, 2))
+    plt.plot(annual_closes.index, annual_closes, marker='o', color='green', linestyle='-')
+    plt.xlabel('Ano')
+    plt.ylabel('Fechamento Anual em Dezembro')
+    plt.grid(True)
+    plt.savefig('ibov_plot.png', bbox_inches='tight')
+    plt.close()
+    c.drawImage('ibov_plot.png', 50, 130, width=400, height=200)
+
+    c.showPage()  # Avançar para a próxima página
+    c.save()  # Salvar o arquivo PDF
 
 #----------------------------------------------juntar PDFS e gerar o relatório consolidado----------------
 import PyPDF2
 
 # Arquivos a serem combinados
+# Arquivos a serem combinados
 arquivo1 = "Relatorio_Analise_Fundamentalista_Acoes.pdf"
-arquivo2 = "Relatorio_Analise_técnica_Acoes.pdf"  # Nome do arquivo que está na mesma pasta
+arquivo2 = "Relatorio_Analise_técnica_Acoes.pdf"
+arquivo3 = "Selic_ibovespa.pdf"
 
 # Nome do arquivo PDF consolidado
 arquivo_consolidado = "Relatório_Consolidado_acoes.pdf"
 
 # Abrir os arquivos PDF
-with open(arquivo1, "rb") as file1, open(arquivo2, "rb") as file2:
-    # Criar objetos PDF para os arquivos
-    pdf1 = PyPDF2.PdfReader(file1)
-    pdf2 = PyPDF2.PdfReader(file2)
-
+with open(arquivo1, "rb") as file1, open(arquivo2, "rb") as file2, open(arquivo3, "rb") as file3:
     # Criar um objeto PDF para o arquivo consolidado
     pdf_writer = PyPDF2.PdfWriter()
 
     # Adicionar páginas do primeiro arquivo
-    for page_num in range(len(pdf1.pages)):
-        pdf_writer.add_page(pdf1.pages[page_num])
+    pdf_reader = PyPDF2.PdfReader(file1)
+    for page_num in range(len(pdf_reader.pages)):
+        pdf_writer.add_page(pdf_reader.pages[page_num])
 
     # Adicionar páginas do segundo arquivo
-    for page_num in range(len(pdf2.pages)):
-        pdf_writer.add_page(pdf2.pages[page_num])
+    pdf_reader = PyPDF2.PdfReader(file2)
+    for page_num in range(len(pdf_reader.pages)):
+        pdf_writer.add_page(pdf_reader.pages[page_num])
+
+    # Adicionar páginas do terceiro arquivo
+    pdf_reader = PyPDF2.PdfReader(file3)
+    for page_num in range(len(pdf_reader.pages)):
+        pdf_writer.add_page(pdf_reader.pages[page_num])
 
     # Salvar o arquivo consolidado
     with open(arquivo_consolidado, "wb") as output_file:
         pdf_writer.write(output_file)
 
 print(f"Arquivos combinados com sucesso em '{arquivo_consolidado}'.")
-
