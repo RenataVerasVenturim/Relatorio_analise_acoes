@@ -4,3 +4,5 @@ Automação com selenium para extrair dados de empresas no status invest e trata
 <img src="https://github.com/RenataVerasVenturim/Relatorio_analise_acoes/assets/129551549/de9f8a9e-9f6a-4930-9889-124e03f74754">
 
 <img src="https://github.com/RenataVerasVenturim/Relatorio_analise_acoes/assets/129551549/d9d20564-3147-4155-856f-59e31164bcd1">
+
+<img src="https://github.com/RenataVerasVenturim/Relatorio_analise_acoes/assets/129551549/25fddb0f-0f95-437c-b093-36984415ca76">
